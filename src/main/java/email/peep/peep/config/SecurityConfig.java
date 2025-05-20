@@ -39,9 +39,12 @@ public class SecurityConfig {
 
 
         return http
+                .csrf(csrf -> csrf
+                            .ignoringRequestMatchers("/gmail/pubsub")  // Disable CSRF for specific Pub/Sub push endpoint
+                )
                 .authorizeHttpRequests(registry -> {
-                    registry.requestMatchers("/login").permitAll();
-                    registry.anyRequest().authenticated();
+                    registry.requestMatchers("/user").authenticated();
+                    registry.anyRequest().permitAll();
                 })
                 .oauth2Login(oauth2 -> oauth2
                         .authorizationEndpoint(authorization -> authorization
