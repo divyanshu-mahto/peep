@@ -54,10 +54,10 @@ public class GmailController {
         String subscriptionName = pushMessage.getSubscription();
 
         System.out.println("--- Message Arrived ---");
-        System.out.println("  Subscription: {}"+ subscriptionName);
-        System.out.println("  Message ID: {}"+ messageId);
-        System.out.println("  Payload (decoded): {}"+ decodedData);
-        System.out.println("  Attributes: {}"+ attributes);
+        System.out.println("  Subscription: "+ subscriptionName);
+        System.out.println("  Message ID: "+ messageId);
+        System.out.println("  Payload (decoded): "+ decodedData);
+        System.out.println("  Attributes: "+ attributes);
         System.out.println("-----------------------");
 
         return new ResponseEntity<>("Message processed successfully", HttpStatus.OK);

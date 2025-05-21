@@ -6,8 +6,11 @@ import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.gson.GsonFactory;
+import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.services.gmail.Gmail;
 import com.google.api.services.gmail.model.*;
+import org.springframework.beans.factory.annotation.Value;
+
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -43,5 +46,30 @@ public class GmailService {
         }
 
         return labels;
+    }
+
+    @Value("${gmail.pubsub.topic}")
+    private String topicName;
+
+    public Gmail getGmailService(String accessToken) {
+        GoogleCredential credential = new GoogleCredential().setAccessToken(accessToken);
+
+        return new Gmail.Builder(new NetHttpTransport(), JacksonFactory.getDefaultInstance(), credential)
+                .setApplicationName("Peep-demo-1")
+                .build();
+    }
+
+    public WatchResponse startWatch(String accessToken) throws IOException {
+        Gmail service = getGmailService(accessToken);
+
+        WatchRequest request = new WatchRequest()
+                .setTopicName(topicName)
+                .setLabelIds(List.of("INBOX"))
+                .setLabelFilterAction("include");
+
+        WatchResponse response = service.users().watch("me", request).execute();
+
+        System.out.println("Watch response: " + response);
+        return response;
     }
 }
