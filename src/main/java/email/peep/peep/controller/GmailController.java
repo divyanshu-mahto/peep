@@ -1,5 +1,7 @@
 package email.peep.peep.controller;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.services.gmail.model.Label;
 import email.peep.peep.dto.PubSubMessage;
 import email.peep.peep.dto.PubSubPushMessage;
@@ -11,8 +13,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
+import java.util.Base64;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/gmail")
@@ -40,25 +45,34 @@ public class GmailController {
 
 
     @PostMapping("/pubsub")
-    public ResponseEntity<String> receiveMessage(@RequestBody PubSubPushMessage pushMessage) {
+    public ResponseEntity<String> receiveMessage(@RequestBody PubSubPushMessage pushMessage) throws IOException, GeneralSecurityException {
         if (pushMessage == null || pushMessage.getMessage() == null) {
             System.out.println("Received invalid Pub/Sub push message (null or missing inner message).");
             return new ResponseEntity<>("Invalid message format", HttpStatus.BAD_REQUEST);
         }
 
-        PubSubMessage innerMessage = pushMessage.getMessage();
+        PubSubMessage pubSubMessage = pushMessage.getMessage();
 
-        String messageId = innerMessage.getMessageId();
-        String decodedData = innerMessage.getDecodedData();
-        Map<String, String> attributes = innerMessage.getAttributes();
-        String subscriptionName = pushMessage.getSubscription();
+        String data = pubSubMessage.getData();
+        String publishTime = pubSubMessage.getPublishTime();
 
-        System.out.println("--- Message Arrived ---");
-        System.out.println("  Subscription: "+ subscriptionName);
-        System.out.println("  Message ID: "+ messageId);
-        System.out.println("  Payload (decoded): "+ decodedData);
-        System.out.println("  Attributes: "+ attributes);
-        System.out.println("-----------------------");
+
+        byte[] decodedBytes = Base64.getUrlDecoder().decode(data);
+        String decodedJsonString = new String(decodedBytes, StandardCharsets.UTF_8);
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        JsonNode jsonNode = objectMapper.readTree(decodedJsonString);
+
+        String emailAddress = jsonNode.get("emailAddress").asText();
+        String historyId = jsonNode.get("historyId").asText();
+
+        System.out.println("----------------Got new message-----------------------");
+        System.out.println(historyId);
+        System.out.println(emailAddress);
+        System.out.println(publishTime);
+        System.out.println("------------------------------------------------------");
+
+        gmailService.readGmail(emailAddress, historyId);
 
         return new ResponseEntity<>("Message processed successfully", HttpStatus.OK);
     }

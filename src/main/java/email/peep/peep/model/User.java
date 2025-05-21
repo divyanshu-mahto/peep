@@ -6,6 +6,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.*;
 
+import java.math.BigInteger;
 import java.time.Instant;
 
 @Entity
@@ -30,4 +31,7 @@ public class User {
 
     @Column(name = "access_token_expiry", nullable = false)
     private Instant expiration;
+
+    @Column(name = "history_id")
+    private BigInteger historyId;
 }
