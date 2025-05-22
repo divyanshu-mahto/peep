@@ -1,7 +1,9 @@
 package email.peep.peep.controller;
 
+import email.peep.peep.model.Notification;
 import email.peep.peep.model.User;
 import email.peep.peep.service.AuthService;
+import email.peep.peep.service.GeminiService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +23,9 @@ public class UserController {
 
     @Autowired
     AuthService authService;
+
+    @Autowired
+    GeminiService geminiService;
 
     @RequestMapping("/user")
     public Principal user(Principal user) {
@@ -47,5 +52,11 @@ public class UserController {
         } catch (Exception e){
             return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
+    }
+
+    @GetMapping("/askai")
+    public ResponseEntity<?> askAi(){
+        Notification resp = geminiService.jsonResponseGemini();
+        return new ResponseEntity<>(resp, HttpStatus.OK);
     }
 }
