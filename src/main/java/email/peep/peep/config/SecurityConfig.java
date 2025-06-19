@@ -1,6 +1,7 @@
 package email.peep.peep.config;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
@@ -10,12 +11,16 @@ import org.springframework.security.oauth2.client.web.DefaultOAuth2Authorization
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestResolver;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import java.util.HashMap;
 import java.util.Map;
 
 @Configuration
 public class SecurityConfig {
+
+    @Autowired
+    private JwtFilter jwtFilter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http, ClientRegistrationRepository clientRegistrationRepository) throws Exception {
@@ -40,10 +45,10 @@ public class SecurityConfig {
 
         return http
                 .csrf(csrf -> csrf
-                            .ignoringRequestMatchers("/gmail/pubsub")  // Disable CSRF for specific Pub/Sub push endpoint
+                            .ignoringRequestMatchers("/gmail/pubsub", "/send-notification", "/create-rule", "/set-fcm")  // Disable CSRF for specific Pub/Sub push endpoint
                 )
                 .authorizeHttpRequests(registry -> {
-                    registry.requestMatchers("/user").authenticated();
+                    registry.requestMatchers("/user", "/create-rule").authenticated();
                     registry.anyRequest().permitAll();
                 })
                 .oauth2Login(oauth2 -> oauth2
@@ -52,6 +57,7 @@ public class SecurityConfig {
                         .defaultSuccessUrl("/login/success", true)
                 )
                 .formLogin(Customizer.withDefaults())
+                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 .logout(Customizer.withDefaults())
                 .build();
     }

@@ -19,7 +19,6 @@ public class AuthService {
     @Autowired
     GmailService gmailService;
 
-
     public void createUser(User user) throws IOException {
         Optional<User> existing = userRepository.findById(user.getOpenId());
 

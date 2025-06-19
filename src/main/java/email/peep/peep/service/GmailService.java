@@ -9,6 +9,7 @@ import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.services.gmail.Gmail;
 import com.google.api.services.gmail.model.*;
+import email.peep.peep.model.NotificationMessage;
 import email.peep.peep.model.User;
 import email.peep.peep.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,6 +30,12 @@ public class GmailService {
 
     @Autowired
     UserRepository userRepository;
+
+    @Autowired
+    GeminiService geminiService;
+
+    @Autowired
+    NotificationService notificationService;
 
     private final JsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
 
@@ -59,11 +66,14 @@ public class GmailService {
     @Value("${gmail.pubsub.topic}")
     private String topicName;
 
+    @Value("${gmail.pubsub.application.name}")
+    private String appName;
+
     public Gmail getGmailService(String accessToken) {
         GoogleCredential credential = new GoogleCredential().setAccessToken(accessToken);
 
         return new Gmail.Builder(new NetHttpTransport(), JacksonFactory.getDefaultInstance(), credential)
-                .setApplicationName("Peep-demo-1")
+                .setApplicationName(appName)
                 .build();
     }
 
@@ -82,13 +92,12 @@ public class GmailService {
     }
 
     public void readGmail(String email, String historyId) throws GeneralSecurityException, IOException {
-        System.out.println("----Attempting to read message----------");
 
         User user = userRepository.findByEmail(email);
 
         final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
         Credential credential = new GoogleCredential().setAccessToken(user.getAccessToken());
-        String APPLICATION_NAME = "Peep-demo-1";
+        String APPLICATION_NAME = appName;
         Gmail service = new Gmail.Builder(HTTP_TRANSPORT, JSON_FACTORY, credential)
                 .setApplicationName(APPLICATION_NAME)
                 .build();
@@ -112,12 +121,24 @@ public class GmailService {
 
                         Message message = service.users().messages().get("me", messageId).setFormat("full").execute();
 
-                        System.out.println("Id: " + messageId);
-                        System.out.println("From: " + getHeader(message.getPayload().getHeaders(), "from"));
-                        System.out.println("Subject: " + getHeader(message.getPayload().getHeaders(), "subject"));
-
                         String body = extractBody(message.getPayload());
                         System.out.println("Body: " + body);
+
+                        StringBuilder emailContent = new StringBuilder();
+                        emailContent.append("From: ").append(getHeader(message.getPayload().getHeaders(), "from"));
+                        emailContent.append("Subject: ").append(getHeader(message.getPayload().getHeaders(), "subject"));
+                        emailContent.append("Body: ").append(body);
+
+                        NotificationMessage notificationMessage = geminiService.jsonResponseGemini(emailContent.toString(), user.getRules());
+
+                        if(notificationMessage.isRelevant()) {
+                            notificationService.sendNotification(user.getFcmToken(), notificationMessage);
+
+                            System.out.println("-------Notification Sent----------");
+                        }else{
+                            System.out.println("-------Email not relevant----------");
+                        }
+
                     }
                 }
             }
