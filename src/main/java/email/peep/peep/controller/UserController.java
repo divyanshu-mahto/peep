@@ -8,8 +8,12 @@ import email.peep.peep.service.AuthService;
 import email.peep.peep.service.GeminiService;
 import email.peep.peep.service.JwtService;
 import email.peep.peep.service.UserService;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
 import org.springframework.security.oauth2.client.annotation.RegisteredOAuth2AuthorizedClient;
@@ -19,6 +23,7 @@ import org.springframework.security.oauth2.core.OAuth2RefreshToken;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
+import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 
@@ -48,8 +53,11 @@ public class UserController {
     @Autowired
     private RuleRepository ruleRepository;
 
+    @Value("${frontend.url}")
+    private String frontendUrl;
+
     @GetMapping("/login/success")
-    public ResponseEntity<String> signup(OAuth2AuthenticationToken token, @RegisteredOAuth2AuthorizedClient("google") OAuth2AuthorizedClient authorizedClient){
+    public ResponseEntity<String> signup(OAuth2AuthenticationToken token, @RegisteredOAuth2AuthorizedClient("google") OAuth2AuthorizedClient authorizedClient, HttpServletResponse response){
         User user = new User();
         user.setOpenId(token.getPrincipal().getAttribute("sub"));
         user.setName(token.getPrincipal().getAttribute("name"));
@@ -65,6 +73,7 @@ public class UserController {
         try {
             String jwtToken = jwtService.generateToken(user.getEmail());
             authService.createUser(user);
+
             return new ResponseEntity<>(jwtToken, HttpStatus.OK);
         } catch (Exception e){
             return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
@@ -81,7 +90,7 @@ public class UserController {
             String email = jwtService.extractEmail(token);
             User user = userRepository.findByEmail(email);
 
-            if (user == null) {
+            if (user == null || !jwtService.validateToken(token, email)) {
                 return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
             }
 
@@ -102,7 +111,37 @@ public class UserController {
             String email = jwtService.extractEmail(token);
             User user = userRepository.findByEmail(email);
 
-            if (user == null) {
+            if (user == null || !jwtService.validateToken(token, email)) {
+                return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
+            }
+
+            List<Rule> rules = userService.getAllRules(user);
+
+            return new ResponseEntity<>(rules, HttpStatus.OK);
+
+        } catch (Exception e){
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    //all rules 2
+    @GetMapping("/all-rules2")
+    public ResponseEntity<?> allRules2(@CookieValue(name = "Authorization", required = false) String authHeader){
+        System.out.println("JWT: "+authHeader);
+        System.out.println("Got request on all rules 2");
+
+        if(authHeader == null || authHeader.isBlank()) {
+            return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
+        }
+
+        System.out.println("JWT: "+authHeader);
+
+        try{
+            String token = authHeader.substring(7);
+            String email = jwtService.extractEmail(token);
+            User user = userRepository.findByEmail(email);
+
+            if (user == null || !jwtService.validateToken(token, email)) {
                 return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
             }
 
@@ -116,6 +155,26 @@ public class UserController {
     }
 
     //edit existing rule
+    @PostMapping("/edit-rule")
+    public ResponseEntity<?> modifyRule(@RequestHeader("Authorization") String authHeader, @RequestBody UUID ruleId){
+        try{
+            String token = authHeader.substring(7);
+            String email = jwtService.extractEmail(token);
+            User user = userRepository.findByEmail(email);
+
+            if (user == null || !jwtService.validateToken(token, email)) {
+                return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
+            }
+
+            ruleRepository.deleteById(ruleId);
+
+            return new ResponseEntity<>(HttpStatus.OK);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
 
     //delete a rule
     @DeleteMapping("/rule")
@@ -125,7 +184,7 @@ public class UserController {
             String email = jwtService.extractEmail(token);
             User user = userRepository.findByEmail(email);
 
-            if (user == null) {
+            if (user == null || !jwtService.validateToken(token, email)) {
                 return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
             }
 
@@ -148,13 +207,16 @@ public class UserController {
             String email = jwtService.extractEmail(token);
             User user = userRepository.findByEmail(email);
 
-            if (user == null) {
+            if (user == null || !jwtService.validateToken(token, email)) {
                 return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
             }
+
+            System.out.println("----------Recieved fcm token: "+fcmToken);
 
             user.setFcmToken(fcmToken);
             userRepository.save(user);
 
+            System.out.println("-------------Token updated------------");
             return new ResponseEntity<>("Token Updated", HttpStatus.OK);
         } catch (Exception e){
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);

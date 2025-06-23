@@ -7,6 +7,7 @@ import email.peep.peep.dto.PubSubMessage;
 import email.peep.peep.dto.PubSubPushMessage;
 import email.peep.peep.model.User;
 import email.peep.peep.repository.UserRepository;
+import email.peep.peep.service.AuthService;
 import email.peep.peep.service.GmailService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
+import java.time.Instant;
 import java.util.Base64;
 import java.util.List;
 
@@ -28,6 +30,9 @@ public class GmailController {
 
     @Autowired
     GmailService gmailService;
+
+    @Autowired
+    AuthService authService;
 
     @GetMapping("labels/{email}")
     public ResponseEntity<String> getEmailLabels(@PathVariable("email") String email){
@@ -72,7 +77,14 @@ public class GmailController {
         System.out.println(publishTime);
         System.out.println("------------------------------------------------------");
 
-        gmailService.readGmail(emailAddress, historyId);
+        User user = userRepository.findByEmail(emailAddress);
+
+        //verify if access token is valid
+        //else refresh access token
+        authService.getValidAccessToken(user);
+        user = userRepository.findByEmail(emailAddress);
+
+        gmailService.readGmail(user, historyId);
 
         return new ResponseEntity<>("Message processed successfully", HttpStatus.OK);
     }

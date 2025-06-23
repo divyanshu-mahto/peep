@@ -45,18 +45,19 @@ public class SecurityConfig {
 
         return http
                 .csrf(csrf -> csrf
-                            .ignoringRequestMatchers("/gmail/pubsub", "/send-notification", "/create-rule", "/set-fcm")  // Disable CSRF for specific Pub/Sub push endpoint
+                            .ignoringRequestMatchers("/gmail/pubsub", "/send-notification", "/create-rule", "/set-fcm")  // Disable CSRF for specific endpoint
                 )
                 .authorizeHttpRequests(registry -> {
                     registry.requestMatchers("/user", "/create-rule").authenticated();
                     registry.anyRequest().permitAll();
                 })
                 .oauth2Login(oauth2 -> oauth2
+                        .loginPage("/login")
                         .authorizationEndpoint(authorization -> authorization
                                 .authorizationRequestResolver(customResolver))
                         .defaultSuccessUrl("/login/success", true)
                 )
-                .formLogin(Customizer.withDefaults())
+//                .formLogin(Customizer.withDefaults())
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 .logout(Customizer.withDefaults())
                 .build();

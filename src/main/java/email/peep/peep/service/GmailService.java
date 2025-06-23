@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
+import java.time.Instant;
 import java.util.Base64;
 import java.util.List;
 
@@ -91,9 +92,7 @@ public class GmailService {
         return response;
     }
 
-    public void readGmail(String email, String historyId) throws GeneralSecurityException, IOException {
-
-        User user = userRepository.findByEmail(email);
+    public void readGmail(User user, String historyId) throws GeneralSecurityException, IOException {
 
         final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
         Credential credential = new GoogleCredential().setAccessToken(user.getAccessToken());
@@ -122,7 +121,6 @@ public class GmailService {
                         Message message = service.users().messages().get("me", messageId).setFormat("full").execute();
 
                         String body = extractBody(message.getPayload());
-                        System.out.println("Body: " + body);
 
                         StringBuilder emailContent = new StringBuilder();
                         emailContent.append("From: ").append(getHeader(message.getPayload().getHeaders(), "from"));
